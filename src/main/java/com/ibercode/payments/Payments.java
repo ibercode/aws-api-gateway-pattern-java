@@ -10,14 +10,12 @@ import com.ibercode.payments.utils.PaymentUtils;
 
 public class Payments implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
 
+    private static final String commonUrl = System.getenv("COMMON_URL");
     private final PaymentUtils paymentUtils = new PaymentUtils();
     private final Gson gson = new Gson();
 
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
-
-        String commonUrl = System.getenv("COMMON_URL");
-
         String customerResponse = paymentUtils.updateCustomerDDB(event.getBody(),commonUrl + "/customer");
         paymentUtils.updateSalesDDB(event.getBody(),commonUrl + "/sales");
         paymentUtils.notifyCustomer(event.getBody(),commonUrl + "/communication");

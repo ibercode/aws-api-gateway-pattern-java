@@ -9,6 +9,10 @@ import java.net.http.HttpResponse;
 
 public class PaymentUtils {
 
+    private final HttpClient client = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_2)
+            .build();
+
     public String updateCustomerDDB(String body, String customerUrl) {
         return getResponseBody(body, customerUrl);
     }
@@ -22,11 +26,6 @@ public class PaymentUtils {
     }
 
     private String getResponseBody(String body, String url) {
-
-        HttpClient client = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_2)
-                .build();
-
         String responseBody = "";
 
         try {
