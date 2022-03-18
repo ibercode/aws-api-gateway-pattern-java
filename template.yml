@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: APIGW-Pattern
+
+Globals:
+  Function:
+    Runtime: java11
+    MemorySize: 512
+    Timeout: 100
+
+  Api:
+    OpenApiVersion: '3.0.1'
+
+Resources:
+  PaymentsAPIGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Name: PaymentsAPIGateway
+  CommonAPIGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Name: CommonAPIGateway
+
+  Payments:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Payments
+      Handler: com.ibercode.payments.Payments::handleRequest
+      CodeUri: target/sourceCode.zip
+      Events:
+        Payment:
+          Type: Api
+          Properties:
+            Path: /payments
+            Method: POST
+            RestApiId: !Ref PaymentsAPIGateway
+      Environment:
+        Variables:
+          COMMON_URL: !Sub 'https://${CommonAPIGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/gateway'
+
+  Customer:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Customer
+      Handler: com.ibercode.customer.Customer::handleRequest
+      CodeUri: target/sourceCode.zip
+      Policies:
+        - AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          REGION: !Sub '${AWS::Region}'
+          CUSTOMERS_TABLE: !Ref CustomersDynamoDB
+      Events:
+        Payment:
+          Type: Api
+          Properties:
+            Path: /gateway/customer
+            Method: POST
+            RestApiId: !Ref CommonAPIGateway
+
+  Sales:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Sales
+      Handler: com.ibercode.sales.Sales::handleRequest
+      CodeUri: target/sourceCode.zip
+      Policies:
+        - AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          REGION: !Sub '${AWS::Region}'
+          SALES_TABLE: !Ref SalesDynamoDB
+      Events:
+        Payment:
+          Type: Api
+          Properties:
+            Path: /gateway/sales
+            Method: POST
+            RestApiId: !Ref CommonAPIGateway
+
+  Communication:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Communication
+      Handler: com.ibercode.communication.Communication::handleRequest
+      CodeUri: target/sourceCode.zip
+      Policies:
+        - AmazonSNSFullAccess
+      Environment:
+        Variables:
+          REGION: !Sub '${AWS::Region}'
+          TOPIC_ARN: !Ref CommunicationSNS
+      Events:
+        Payment:
+          Type: Api
+          Properties:
+            Path: /gateway/communication
+            Method: POST
+            RestApiId: !Ref CommonAPIGateway
+
+  # DynamoDB Tables
+  SalesDynamoDB:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: Sales
+      AttributeDefinitions:
+        - AttributeName: saleId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: saleId
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  CustomersDynamoDB:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: CustomerPayments
+      AttributeDefinitions:
+        - AttributeName: paymentId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: paymentId
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  # SNS Communication
+  CommunicationSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: Communication
+
+Outputs:
+  PaymentsEndpoint:
+    Description: API Gateway Payments Endpoint
+    Value:
+      Fn::Sub: https://${PaymentsAPIGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/payments
