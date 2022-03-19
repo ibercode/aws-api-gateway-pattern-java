@@ -10,17 +10,13 @@ import com.ibercode.sales.utils.SalesDDBUtils;
 
 public class Sales implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
 
+    private static final String TABLE_NAME = System.getenv("SALES_TABLE");
     private final ObjectMapper MAPPER = new ObjectMapper();
+    private final SalesDDBUtils ddbUtils = new SalesDDBUtils();
 
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
-
-        String region = System.getenv("REGION");
-        String tableName = System.getenv("SALES_TABLE");
-
-        SalesDDBUtils ddbUtils = new SalesDDBUtils(region);
-
-        String salesId = ddbUtils.persistPayment(event.getBody(), tableName);
+        String salesId = ddbUtils.persistPayment(event.getBody(), TABLE_NAME);
 
         APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
         try {
